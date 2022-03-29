@@ -1,5 +1,5 @@
-# Dynamic EMVS
-#-------------
+# Dynamic EMVS for TVp regression model with discount factor model for variances
+#--------------------------------------------------------------------------------
 
 DEMVS<-function(y,X,N,n0,d0,phi0,phi1,THETA,lambda0,lambda1,delta,new.X){
   
