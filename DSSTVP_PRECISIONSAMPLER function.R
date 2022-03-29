@@ -1,7 +1,7 @@
-# Dynamic SSVS (Precision Sampler) for TVP-SVAR models with SV
-#--------------------------------------------------------------
+# Dynamic SSVS (Precision Sampler) for TVP-VAR models with SV
+#-------------------------------------------------------------
 
-DSSTVP_PRECISIONSAMPLER_SVAR = function(X,constant,lags,N,burn,THETA,lambda1,lambda0,phi1,phi0,gamma0,v0,start_params,start_latent){
+DSSTVP_PRECISIONSAMPLER = function(X,constant,lags,N,burn,THETA,lambda1,lambda0,phi1,phi0,gamma0,v0,start_params,start_latent){
   
   # Packages
   
@@ -30,13 +30,12 @@ DSSTVP_PRECISIONSAMPLER_SVAR = function(X,constant,lags,N,burn,THETA,lambda1,lam
   n = dim(X)[2]
   h=lags
   m = n*(n-1)/2
-  PA = sum(1:(n-1))
-  P = n^2*h+PA
+  P = n^2*h
   step_ahead=1
   np=sum(1:n)
   
   XX<-X[(h+1):TIME,]
-  Y = matrix(t(XX),ncol=1)*10
+  Y = matrix(t(XX),ncol=1)
   bigY<-matrix(NA,nrow=TIME-h,ncol=n*h)
   j=1
   for(i in h:1){
@@ -56,27 +55,19 @@ DSSTVP_PRECISIONSAMPLER_SVAR = function(X,constant,lags,N,burn,THETA,lambda1,lam
   if(constant==TRUE){
     bigY = cbind(matrix(1,nrow=dim(bigY)[1],ncol=1),bigY)
     bigY.new = cbind(matrix(1,nrow=dim(bigY.new)[1],ncol=1),bigY.new)
-    P = P + n
+    pars = (n^2)*h+n
+    P = pars
   }else{}
+  
+  ff.new = bigY.new[dim(bigY.new)[1],]
+  FF.new = kronecker(diag(1,n),matrix(ff.new,nrow=1))
   
   Fill_bigX<-list()
   for(i in 1:dim(bigY)[1]){
     block_bigX = t(kronecker(diag(1,n),bigY[i,]))
-    
-    block_bigX2 = matrix(0, nrow=n, ncol=sum(1:(n-1)))
-    k=0
-    j=1
-    for(s in 1:(n-1)){
-      block_bigX2[2+k,j:(j+length(seq(1:s))-1)] = -XX[i,1:(1+k)]
-      k = k+1
-      j = j+length(seq(1:s))
-    }
-    
-    Fill_bigX[[i]] = cbind(block_bigX,block_bigX2)
+    Fill_bigX[[i]] = block_bigX 
   }
   bigX = .bdiag(Fill_bigX)
-  
-  FF.new = Fill_bigX[[dim(bigY)[1]]]
   
   # Stocvol Package options
   
@@ -84,6 +75,7 @@ DSSTVP_PRECISIONSAMPLER_SVAR = function(X,constant,lags,N,burn,THETA,lambda1,lam
     params <- list(mu = -2, phi = 0.9, sigma = 0.1,
                    nu = Inf, rho = 0, beta = NA,
                    latent0 = -2)
+    
   }else{
     params <-start_params
   }
@@ -143,8 +135,7 @@ DSSTVP_PRECISIONSAMPLER_SVAR = function(X,constant,lags,N,burn,THETA,lambda1,lam
     
     # Sample states 1:T
     
-    # diag(invSig)=c(exp(-h))
-    diag(invSig)=c(exp(h))
+    diag(invSig)=c(exp(-h))
     
     vec = 1/diag(Sigtheta)
     diag(invS) = vec
@@ -223,7 +214,7 @@ DSSTVP_PRECISIONSAMPLER_SVAR = function(X,constant,lags,N,burn,THETA,lambda1,lam
     res = Y-bigX%*%theta
     res1 = matrix(res,ncol=n,byrow=T)
     
-    if(it<100){
+    if(it<10){
       h=rep(-10,TIME*n)
       h.new = matrix(-10,nrow=1,ncol=n)
     }else{
@@ -280,11 +271,14 @@ DSSTVP_PRECISIONSAMPLER_SVAR = function(X,constant,lags,N,burn,THETA,lambda1,lam
   cat("MCMC takes:")
   print(proc.time() - ptm)
   
-  est.theta = colMedians(store_theta)
+  est.theta = colMeans(store_theta)
   est.h = colMedians(store_h)
   est.theta0 = colMedians(store_theta0)
-  est.gammino = colMedians(store_gammino)
-  est.gammino0 = colMedians(store_gammino0)
+  est.gammino = colMeans(store_gammino)
+  est.gammino0 = colMeans(store_gammino0)
+  
+  
+  
   est.fcy = rowMedians(store_fc.y[,1,])
   est.fcm = rowMedians(store_fc.m[,1,])
   est.fcv = rowMedians(store_fc.v[,1,])
@@ -305,4 +299,4 @@ DSSTVP_PRECISIONSAMPLER_SVAR = function(X,constant,lags,N,burn,THETA,lambda1,lam
               phi1=phi1,
               fc.m = est.fcm/10, fc.y = est.fcy/10, fc.v = est.fcv/100
   ))
-} 
+}  
