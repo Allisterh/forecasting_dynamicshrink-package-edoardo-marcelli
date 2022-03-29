@@ -430,3 +430,51 @@ Forecastplot = function(y,from,to,start_fc,fc.f,fc.Q,ub,lb,timeframe){
   }
   
 }
+
+# Forecast function (for multivariate time series models)
+#--------------------------------------------------------
+
+Forecastplot.TVP.VAR = function(from,to,start_fc,X,fc_m,fc_v,i,lb,ub,title,timeframe){
+  require(ggplot2)
+  train = start_fc-from
+  test = to-start_fc
+  
+  if(missing(timeframe)){
+    timeframe=c(1:length(from:to))}else{
+      timeframe=timeframe[from:to]
+    }
+  
+  variance_t = c()
+  for(t in 1:length(start_fc:to)){
+    v = matrix(fc_v[,t])
+    mat=matrix(NA,3,3)
+    mat[lower.tri(mat,diag=T)]=v
+    mat[upper.tri(mat)]=mat[lower.tri(mat)]
+    diag_mat = diag(mat)
+    variance_t[t] = diag_mat[i]
+  }
+  
+  variance = c(rep(NA,train),variance_t)
+  mean = c(rep(NA,train),fc_m[i,])
+  obs_f = c(rep(NA,train),X[start_fc:to,i])
+  obs_p = c(X[from:start_fc,i],rep(NA,test))
+  
+  fcst_df = data.frame(timeframe,variance,mean,obs_f,obs_p)
+  
+  ggplot(fcst_df,aes(x=timeframe))+
+    geom_line(aes(y=obs_p))+
+    geom_line(aes(y=obs_f),linetype="dashed")+
+    geom_line(aes(y=mean),col="blue")+
+    geom_ribbon(aes(ymin=mean-1.96*sqrt(variance),
+                    ymax=mean+1.96*sqrt(variance)),alpha=0.16,fill="blue")+
+    geom_ribbon(aes(ymin=mean-1.282*sqrt(variance),
+                    ymax=mean+1.282*sqrt(variance)),alpha=0.16,fill="blue")+
+    geom_ribbon(aes(ymin=mean-2.576*sqrt(variance),
+                    ymax=mean+2.576*sqrt(variance)),alpha=0.16,fill="blue")+
+    ggtitle(title)+
+    coord_cartesian(ylim = c(lb, ub))+
+    labs(x="Time",
+         y="")+
+    theme_bw()
+  
+}
